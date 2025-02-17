@@ -54,15 +54,15 @@ class GalleryItem {
     }
 
     setCurrPressedPosX(posToSet) {
-        this.#mPosX = posToSet;
-    }
-
-    setCurrPressedPosY(posToSet) {
         this.#mCurrPressedPosX = posToSet;
     }
 
+    setCurrPressedPosY(posToSet) {
+        this.#mCurrPressedPosY = posToSet;
+    }
+
     setSizeX(sizeToSet) {
-        this.#mCurrPressedPosY = sizeToSet;
+        this.#mSizeX = sizeToSet;
     }
 
     setSizeY(sizeToSet) {
@@ -185,18 +185,18 @@ class GalleryView {
         ita.style.height = this.mPreviewSizeX + "px";
         ita.style.left = posX + "px";
         ita.style.top = posY + "px";
+        ita.draggable = false;
         ita.addEventListener("dblclick", (ev) => {
             this.mImageGalleryController.onItemClicked(nid);
         })
         ita.addEventListener("pointerdown", (ev) => {
             const longPress = window.setTimeout(() => { 
                 this.mImageGalleryController.enableMoveMode(nid, ev.pageX, ev.pageY); 
-                console.log("PTDOWN");
             }, 2000);
-            ita.onpointerup = (ev) => { window.clearTimeout(longPress); this.mImageGalleryController.disableMoveMode(nid); console.log("PTUP"); }
-            ita.onpointercancel = (ev) => { window.clearTimeout(longPress); this.mImageGalleryController.disableMoveMode(nid); console.log("PTCANCEL"); }
-            ita.onpointerleave = (ev) => { window.clearTimeout(longPress); this.mImageGalleryController.disableMoveMode(nid); console.log("PTLEAVE"); }
-            ita.onpointerout = (ev) => { window.clearTimeout(longPress); this.mImageGalleryController.disableMoveMode(nid); console.log("PTOUT"); }
+            ita.onpointerup = (ev) => { window.clearTimeout(longPress); this.mImageGalleryController.disableMoveMode(nid); }
+            ita.onpointercancel = (ev) => { window.clearTimeout(longPress); this.mImageGalleryController.disableMoveMode(nid); }
+            ita.onpointerleave = (ev) => { window.clearTimeout(longPress); this.mImageGalleryController.disableMoveMode(nid); }
+            ita.onpointerout = (ev) => { window.clearTimeout(longPress); this.mImageGalleryController.disableMoveMode(nid); }
         })
         ita.addEventListener("pointermove", (ev) => {
             this.mImageGalleryController.moveIfMoveMode(nid, ev.pageX, ev.pageY);
@@ -282,7 +282,6 @@ class GalleryController {
         if (item.getIsMoveMode()) {
             let diffX = newPosX - item.getCurrPressedPosX();
             let diffY = newPosY - item.getCurrPressedPosY();
-            console.log(diffX + " DIFFX DIFFY " + diffY)
             item.setCurrPressedPosX(newPosX);
             item.setCurrPressedPosY(newPosY);
             item.setPosX(item.getPosX() + diffX);
@@ -302,7 +301,6 @@ class GalleryController {
     }
 
     onAddNewItem(fImage, clickPosX, clickPosY) {
-        console.log("Add new image");
         this.mGallerySource.registerImage(fImage).then(
             (resultObj) => {
                 const nodeName = ("image_item_" + this.mItemMap.size);
