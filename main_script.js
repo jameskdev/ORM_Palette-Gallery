@@ -13,6 +13,7 @@ class GalleryItem {
     #mCurrPressedPosY;
     mIsOpened;
     #mIsMoveMode;
+    #mFlaggedForDeletion;
 
     constructor (nodeId, posX, posY, sizeX, sizeY, imgSrc, imageTitle, imageDescription) {
         this.#mNodeId = nodeId;
@@ -27,6 +28,7 @@ class GalleryItem {
         this.#mCurrPressedPosY = 0;
         this.mIsOpened = false;
         this.#mIsMoveMode = false;
+        this.#mFlaggedForDeletion = false;
     }
 
     setImgDescription(descToSet) {
@@ -43,6 +45,10 @@ class GalleryItem {
             this.#mCurrPressedPosX = 0;
             this.#mCurrPressedPosY = 0;
         }
+    }
+
+    setFlaggedForDeletion(flag) {
+        this.#mFlaggedForDeletion = flag;
     }
 
     setPosX(posToSet) {
@@ -91,6 +97,10 @@ class GalleryItem {
 
     getCurrPressedPosY() {
         return this.#mCurrPressedPosY;
+    }
+
+    getFlaggedForDeletion() {
+        return this.#mFlaggedForDeletion;
     }
 
     getSizeX() {
@@ -143,24 +153,75 @@ class GalleryView {
     mImageGalleryController;
     mPreviewSizeX;
     mPreviewSizeY;
+    mIconAreaSizeX;
+    mIconAreaSizeY;
     mBaseDiv;
+    mTrackerSquare;
+    mRows;
+    mCols;
 
     constructor(previewSizeX, previewSizeY) {
-        this.mBaseDiv = document.createElement("div");
+        // Set dimensions needed for this application
         this.mPreviewSizeX = previewSizeX;
         this.mPreviewSizeY = previewSizeY;
+
+        // The base HTML element
+        this.mBaseDiv = document.createElement("div");
         this.mBaseDiv.setAttribute("id", "base_div");
         this.mBaseDiv.style.position = "absolute";
         this.mBaseDiv.style.top = "0px";
         this.mBaseDiv.style.left = "0px";
         this.mBaseDiv.style.zIndex = "-2";
+        this.mBaseDiv.style.display = "grid";
+
+        // The tracker square (visible only when an element is being dragged)
+        this.mTrackerSquare = document.createElement("div");
+        this.mTrackerSquare.style.display = "none";
+        this.mTrackerSquare.style.gridColumn = "1";
+        this.mTrackerSquare.style.gridRow = "1";
+        this.mTrackerSquare.style.border = "5px solid"
+        this.mTrackerSquare.style.borderColor = "#00FFFF";
+        this.mBaseDiv.appendChild(this.mTrackerSquare);
+
+        // Set the dimensions (that are constantly updated throughout the session)
+        this.updateScreenDimennsions();
+        
+        if (navigator.maxTouchPoints > 0) {
+            this.mBaseDiv.addEventListener("contextmenu", (ev) => { 
+                ev.preventDefault();
+                this.onAddNewImage(ev.pageX, ev.pageY);
+            });
+        } else {
+            this.mBaseDiv.addEventListener("mousedown", (ev) => { 
+                const longPress = window.setTimeout(() => { this.onAddNewImage(ev.pageX, ev.pageY); }, 2000);
+                window.onmouseup = function () { window.clearTimeout(longPress); }
+            });
+        }
+
+        window.addEventListener("resize", (ev) => { 
+            this.updateScreenDimennsions();
+         });
+        document.body.appendChild(this.mBaseDiv);
+    }
+
+    updateScreenDimennsions() {
+        // Set the dimensions (that are constantly updated throughout the session)
+        this.mCols = this.getOptimalCols(this.mPreviewSizeX * 1.25);
+        this.mRows = this.getOptimalRows(this.mPreviewSizeY * 1.25);
+        this.mIconAreaSizeX = window.innerWidth / this.mCols;
+        this.mIconAreaSizeY = window.innerHeight / this.mRows;
         this.mBaseDiv.style.height = window.innerHeight + "px";
         this.mBaseDiv.style.width = window.innerWidth + "px";
-        this.mBaseDiv.addEventListener("pointerdown", (ev) => { 
-            const longPress = window.setTimeout(() => { this.onAddNewImage(ev.pageX, ev.pageY); }, 2000);
-            window.onpointerup = function () { window.clearTimeout(longPress); }
-        });
-        document.body.appendChild(this.mBaseDiv);
+        this.mBaseDiv.style.gridTemplateColumns = "repeat(" + this.mCols + ", " + this.mIconAreaSizeX + "px)";
+        this.mBaseDiv.style.gridTemplateRows= "repeat(" + this.mRows + ", " + this.mIconAreaSizeY + "px)";
+    }
+
+    getOptimalCols(iWidth) {
+        return (window.innerWidth - (window.innerWidth % iWidth)) / iWidth;
+    }
+
+    getOptimalRows(iHeight) {
+        return (window.innerHeight - (window.innerHeight % iHeight)) / iHeight;
     }
 
     onAddNewImage(clickPosX, clickPosY) {
@@ -182,26 +243,47 @@ class GalleryView {
         ita.src = imgSrc;
         ita.style.position = "absolute";
         ita.style.width = this.mPreviewSizeX + "px";
-        ita.style.height = this.mPreviewSizeX + "px";
+        ita.style.height = this.mPreviewSizeY + "px";
         ita.style.left = posX + "px";
         ita.style.top = posY + "px";
         ita.draggable = false;
         ita.addEventListener("dblclick", (ev) => {
             this.mImageGalleryController.onItemClicked(nid);
-        })
-        ita.addEventListener("pointerdown", (ev) => {
-            const longPress = window.setTimeout(() => { 
-                this.mImageGalleryController.enableMoveMode(nid, ev.pageX, ev.pageY); 
-            }, 2000);
-            ita.onpointerup = (ev) => { window.clearTimeout(longPress); this.mImageGalleryController.disableMoveMode(nid); }
-            ita.onpointercancel = (ev) => { window.clearTimeout(longPress); this.mImageGalleryController.disableMoveMode(nid); }
-            ita.onpointerleave = (ev) => { window.clearTimeout(longPress); this.mImageGalleryController.disableMoveMode(nid); }
-            ita.onpointerout = (ev) => { window.clearTimeout(longPress); this.mImageGalleryController.disableMoveMode(nid); }
-        })
-        ita.addEventListener("pointermove", (ev) => {
-            this.mImageGalleryController.moveIfMoveMode(nid, ev.pageX, ev.pageY);
-        })
+        });
+        if (navigator.maxTouchPoints > 0) {
+            ita.addEventListener("touchstart", (ev) => {
+                console.log("TSTART");
+                const longPress = window.setTimeout(() => { 
+                    this.mImageGalleryController.enableMoveMode(nid, ev.touches[0].pageX, ev.touches[0].pageY); 
+                }, 2000);
+                ita.ontouchcancel = (ev) => { window.clearTimeout(longPress); this.mImageGalleryController.disableMoveMode(nid);}
+                ita.ontouchend = (ev) => { window.clearTimeout(longPress); this.mImageGalleryController.disableMoveMode(nid); }
+            })
+            ita.addEventListener("touchmove", (ev) => {
+                this.mImageGalleryController.moveIfMoveMode(nid, ev.touches[0].pageX, ev.touches[0].pageY);
+            })
+            ita.addEventListener("contextmenu", (ev) => { ev.preventDefault(); })
+        } else {
+            ita.addEventListener("mousedown", (ev) => {
+                const longPress = window.setTimeout(() => { 
+                    this.mImageGalleryController.enableMoveMode(nid, ev.pageX, ev.pageY); 
+                }, 2000);
+                ita.onmouseup = (ev) => { window.clearTimeout(longPress); this.mImageGalleryController.disableMoveMode(nid); console.log("PTUP"); }
+                ita.onmouseout = (ev) => { window.clearTimeout(longPress); this.mImageGalleryController.disableMoveMode(nid); console.log("PTOUT"); }
+            })
+            ita.addEventListener("mousemove", (ev) => {
+                this.mImageGalleryController.moveIfMoveMode(nid, ev.pageX, ev.pageY);
+            })
+        }
         document.body.appendChild(ita);
+    }
+
+    itemInDeleteZone(inDeleteZone) {
+        if (inDeleteZone) {
+            this.mTrackerSquare.style.borderColor = "#FF0000";
+        } else {
+            this.mTrackerSquare.style.borderColor = "#00FFFF";
+        }
     }
 
     closeImage(nid, posX, posY) {
@@ -220,10 +302,32 @@ class GalleryView {
         itemElement.style.height = sizeY + "px";
     }
 
+    startMoveImage(newX, newY) {
+        this.mTrackerSquare.style.gridColumn = Math.ceil(newX / this.mIconAreaSizeX);
+        this.mTrackerSquare.style.gridRow = Math.ceil(newY / this.mIconAreaSizeY);
+        this.mTrackerSquare.style.display = "";
+    }
+
     moveImage(nid, newX, newY) {
         const itemElement = document.getElementById(nid);
+        this.mTrackerSquare.style.gridColumn = Math.ceil(newX / this.mIconAreaSizeX);
+        this.mTrackerSquare.style.gridRow = Math.ceil(newY / this.mIconAreaSizeY);
         itemElement.style.left = newX + "px";
         itemElement.style.top = newY + "px";
+    }
+
+    moveImageEnd() {
+        this.mTrackerSquare.style.display = "none";
+        this.mTrackerSquare.style.gridColumn = "1";
+        this.mTrackerSquare.style.gridRow = "1";
+    }
+
+    setBlurEffect(onoff) {
+        if (onoff) {
+            this.mBaseDiv.style.filter = "blur(1.0rem)"
+        } else {
+            this.mBaseDiv.style.filter = ""
+        }
     }
 
     animateItem(nid, sizeX, sizeY, posX, posY) {
@@ -270,11 +374,20 @@ class GalleryController {
         item.setIsMoveMode(true);
         item.setCurrPressedPosX(posX);
         item.setCurrPressedPosY(posY);
+        this.mGalleryView.startMoveImage(posX, posY);
     }
 
     disableMoveMode(nid) {
         const item = this.mItemMap.get(nid);
-        item.setIsMoveMode(false);
+        if (item.getIsMoveMode()) {
+            item.setIsMoveMode(false);
+            this.mGalleryView.moveImageEnd();
+            this.mGalleryView.itemInDeleteZone(false);
+            if (item.getFlaggedForDeletion()) {
+                this.onRemoveItem(item.getNodeId());
+            }
+            console.log("end move mode");
+        }
     }
 
     moveIfMoveMode(nid, newPosX, newPosY) {
@@ -287,15 +400,24 @@ class GalleryController {
             item.setPosX(item.getPosX() + diffX);
             item.setPosY(item.getPosY() + diffY);
             this.mGalleryView.moveImage(nid, item.getPosX(), item.getPosY());
+            if (window.innerHeight - item.getPosY() < 100) {
+                this.mGalleryView.itemInDeleteZone(true);
+                item.setFlaggedForDeletion(true);
+            } else {
+                this.mGalleryView.itemInDeleteZone(false);
+                item.setFlaggedForDeletion(false);
+            }
         }
     }
 
     showImage(item) {
         if (!item.mIsOpened) {
             this.mGalleryView.showImage(item.getNodeId(), item.getSizeX(), item.getSizeY());
+            this.mGalleryView.setBlurEffect(true)
             item.mIsOpened = true;
         } else {
             this.mGalleryView.closeImage(item.getNodeId(), item.getPosX(), item.getPosY());
+            this.mGalleryView.setBlurEffect(false)
             item.mIsOpened = false;
         }
     }
@@ -316,13 +438,14 @@ class GalleryController {
     onRemoveItem(nid) {
         const itemToDelete = this.mItemMap.get(nid);
         this.mGallerySource.deleteImage(itemToDelete);
+        this.mGalleryView.deleteItem(nid);
         this.mItemMap.delete(nid);
     }
 }
 
 const iModel = new ImageSource();
 const iController = new GalleryController();
-const iView = new GalleryView(100, 100);
+const iView = new GalleryView(150, 150);
 
 iView.mImageGalleryController = iController;
 iController.mGallerySource = iModel;
