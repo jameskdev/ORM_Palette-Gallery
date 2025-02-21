@@ -172,6 +172,8 @@ class GalleryView {
         this.mBaseDiv.style.top = "0px";
         this.mBaseDiv.style.left = "0px";
         this.mBaseDiv.style.zIndex = "-2";
+        this.mBaseDiv.style.backgroundImage = "url(\"default_bg.png\")";
+        this.mBaseDiv.style.backgroundSize = "cover";
         this.mBaseDiv.style.display = "grid";
 
         // The tracker square (visible only when an element is being dragged)
@@ -349,15 +351,147 @@ class GalleryView {
 
 }
 
+class IntroView {
+    #mIntroDiv;
+    #mTextClock;
+    #mTextSwipe;
+
+    constructor() {
+        this.#mIntroDiv = document.createElement("div");
+        this.#mIntroDiv.setAttribute("id", "intro_div");
+        this.#mIntroDiv.style.position = "absolute";
+        this.#mIntroDiv.style.top = "0px";
+        this.#mIntroDiv.style.left = "0px";
+        this.#mIntroDiv.style.backgroundImage = "url(\"lockscreen_default_bg.png\")";
+        this.#mIntroDiv.style.backgroundSize = "cover";
+        this.#mIntroDiv.style.height = window.innerHeight + "px";
+        this.#mIntroDiv.style.width = window.innerWidth + "px";
+
+        this.#mTextClock = document.createElement("h1");
+        this.#mTextClock.textContent = "Gallery Application"
+        this.#mTextClock.style.color = "#FFFFFF"
+        this.#mTextClock.style.fontSize = "60px";
+        this.#mTextClock.style.textAlign = "center";
+        this.#mTextClock.style.verticalAlign = "middle";
+
+        this.#mTextSwipe = document.createElement("h1");
+        this.#mTextSwipe.textContent = "Swipe in any direction to unlock"
+        this.#mTextSwipe.style.color = "#FFFFFF"
+        this.#mTextSwipe.style.fontSize = "40px";
+        this.#mTextSwipe.style.textAlign = "center";
+        this.#mTextSwipe.style.verticalAlign = "middle";
+
+        this.#mIntroDiv.style.display = "grid";
+        this.#mIntroDiv.style.justifyContent = "center";
+        this.#mIntroDiv.style.alignItems = "center";
+
+        this.#mIntroDiv.appendChild(this.#mTextClock);
+        this.#mIntroDiv.appendChild(this.#mTextSwipe);
+
+        window.addEventListener("resize", (ev) => {
+            this.#mIntroDiv.style.height = window.innerHeight + "px";
+            this.#mIntroDiv.style.width = window.innerWidth + "px";
+        });
+
+        document.body.appendChild(this.#mIntroDiv);
+
+        window.setInterval(() => { this.#mTextClock.textContent = new Date().toLocaleTimeString(); }, 1000);
+    }
+
+    addEventListenerForScreen(eventname, callback) {
+        this.#mIntroDiv.addEventListener(eventname, callback);
+    }
+
+    removeEventListenerForScreen(eventname, callback) {
+        this.#mIntroDiv.removeEventListener(eventname, callback);
+    }
+
+    setParametersForFirstText(key, value) {
+        this.#mTextClock.style.setProperty(key, value);
+    }
+
+    setParametersForSecondText(key, value) {
+        this.#mTextSwipe.style.setProperty(key, value);
+    }
+
+    setParametersForScreen(key, value) {
+        this.#mIntroDiv.style.setProperty(key, value);
+    }
+
+    setVisibility(isVisible) {
+        if (isVisible) {
+            this.#mIntroDiv.style.setProperty("display", "grid");
+        } else {
+            this.#mIntroDiv.animate([
+                { opacity: 1 },
+                { opacity: 0 }
+            ] , 250).finished.then(() => {this.#mIntroDiv.style.setProperty("display", "none");});
+        }
+    }
+}
+
 class GalleryController {
     mItemMap;
     mGallerySource;
     mGalleryView;
     mAnimateEffects;
+    prevMouseX;
+    currMouseX;
+    prevMouseY;
+    currMouseY;
+    introX;
+    introY;
+    mIntroView;
+    mIntroMDown;
+    mIsUnlocked;
 
     constructor() {
         this.mItemMap = new Map();
         this.mAnimateEffects = true;
+        this.mIsUnlocked = false;
+        // Mouse coordinates
+        this.prevMouseX = 0;
+        this.currMouseX = 0;
+        this.prevMouseY = 0;
+        this.currMouseY = 0;
+        window.addEventListener("pointermove", (ev) => { 
+            this.prevMouseX = this.currMouseX; 
+            this.prevMouseY = this.currMouseY; 
+            this.currMouseX = ev.clientX; 
+            this.currMouseY = ev.clientY; 
+        });
+
+        // Intro View
+        this.mIntroView = new IntroView();
+        this.introX = 0;
+        this.introY = 0;
+        this.mIntroMDown = false;
+
+        this.mIntroView.addEventListenerForScreen("mousedown", (ev) => { this.mIntroMDown = true; });
+        this.mIntroView.addEventListenerForScreen("mousemove", (ev) => { 
+        if (this.mIntroMDown) {
+            this.introX = this.introX + (this.currMouseX - this.prevMouseX);
+            this.introY = this.introY + (this.currMouseY - this.prevMouseY);
+            this.mIntroView.setParametersForScreen("left", this.introX + "px"); 
+            this.mIntroView.setParametersForScreen("top", this.introY + "px"); 
+
+            if ((this.introX > 300 || this.introX < -300 || this.introY > 300 || this.introY < -300) && !this.mIsUnlocked) {
+                this.mIsUnlocked = true;
+                this.introX = 0;
+                this.introY = 0;
+                this.mIntroView.setParametersForScreen("left", this.introX + "px"); 
+                this.mIntroView.setParametersForScreen("top", this.introY + "px"); 
+                this.mIntroView.setVisibility(false);
+            }
+        } 
+        });
+        this.mIntroView.addEventListenerForScreen("mouseup", (ev) => { 
+            this.mIntroMDown = false; 
+            this.introX = 0;
+            this.introY = 0;
+            this.mIntroView.setParametersForScreen("left", this.introX + "px"); 
+            this.mIntroView.setParametersForScreen("top", this.introY + "px"); 
+        });
     }
 
     onItemClicked(nid) {
