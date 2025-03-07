@@ -157,10 +157,14 @@ class ImageView {
     constructor(imgUrl, title) {
         this.#mUrl = imgUrl;
         this.#mImageViewDiv = document.createElement("div");
-        this.#mImageViewDiv.style.display = "flex";
-        this.#mImageViewDiv.style.flexDirection = "column";
+        this.#mImageViewDiv.style.display = "grid";
         this.#mImageViewDiv.style.justifyContent = "center";
         this.#mImageViewDiv.style.alignItems = "center";
+        this.#mImageViewDiv.style.position = "absolute";
+        this.#mImageViewDiv.style.top = "0px";
+        this.#mImageViewDiv.style.left = "0px";
+        this.#mImageViewDiv.style.height = window.innerHeight + "px";
+        this.#mImageViewDiv.style.width = window.innerWidth + "px";
 
         this.#mImageViewDiv.style.backgroundColor = "#FFFFFF";
 
@@ -173,10 +177,13 @@ class ImageView {
 
         this.#mImageNode = document.createElement("img");
         this.#mImageNode.src = this.#mUrl;
+        this.#mImageNode.style.maxHeight = (window.innerHeight - 100) + "px";
+        this.#mImageNode.style.maxWidth = (window.innerWidth - 100) + "px";
 
         this.#mCloseButton = document.createElement("button");
         this.#mCloseButton.textContent = "Close Image";
         this.#mCloseButton.addEventListener("click", this.#closeImageView);
+        window.addEventListener("resize", this.#onResize)
 
         this.#mImageViewDiv.appendChild(this.#mTitleDiv);
         this.#mImageViewDiv.appendChild(this.#mImageNode);
@@ -186,8 +193,16 @@ class ImageView {
         document.body.appendChild(this.#mImageViewDiv);
     }
 
+    #onResize = (ev) => {
+        this.#mImageViewDiv.style.height = window.innerHeight + "px";
+        this.#mImageViewDiv.style.width = window.innerWidth + "px";
+        this.#mImageNode.style.maxHeight = (window.innerHeight - 100) + "px";
+        this.#mImageNode.style.maxWidth = (window.innerWidth - 100) + "px";
+    }
+
     #closeImageView = () => {
         this.#mCloseButton.removeEventListener("click", this.#closeImageView);
+        window.removeEventListener("resize", this.#onResize);
         document.body.removeChild(this.#mImageViewDiv);
     }
 
@@ -403,7 +418,7 @@ class GalleryView {
                 this.mAnimatorSquare.style.top = "0px"; 
                 this.mAnimatorSquare.style.left = "0px"; 
                 this.mAnimatorSquare.style.display = "none";
-                let g1 = new ImageView(ita.src);
+                this.mImageGalleryController.onItemClicked(nid);
             })
 
         });
@@ -442,8 +457,7 @@ class GalleryView {
 
                     ita_t.style.gridColumn = Math.ceil(ev.pageX / this.mIconAreaSizeX);
                     ita_t.style.gridRow = Math.ceil(ev.pageY / this.mIconAreaSizeY);
-                    console.log("PTC"); }
-                //ita.onmouseout = (ev) => { window.clearTimeout(longPress); this.mImageGalleryController.disableMoveMode(nid); ita.style.position = ""; console.log("PTO"); }
+                     }
             })
             ita.addEventListener("mousemove", (ev) => {
                 let l = ev.pageX - (this.mPreviewSizeX / 2)
@@ -479,24 +493,6 @@ class GalleryView {
         }
     }
 
-    closeImage(nid, posX, posY) {
-        const itemElement = document.getElementById(nid);
-        itemElement.style.left = posX + "px";
-        itemElement.style.top = posY + "px";
-        itemElement.style.width = this.mPreviewSizeX + "px";
-        itemElement.style.height = this.mPreviewSizeY + "px";
-        itemElement.style.position = "";
-    }
-
-    showImage(nid, sizeX, sizeY) {
-        const itemElement = document.getElementById(nid);
-        itemElement.style.position = "absolute";
-        itemElement.style.left = (((window.innerWidth / 2) - (sizeX / 2))  + "px");
-        itemElement.style.top = (((window.innerHeight / 2) - (sizeY / 2))  + "px");
-        itemElement.style.width = sizeX + "px";
-        itemElement.style.height = sizeY + "px";
-    }
-
     startMoveImage(newX, newY) {
         this.mTrackerSquare.style.gridColumn = Math.ceil(newX / this.mIconAreaSizeX);
         this.mTrackerSquare.style.gridRow = Math.ceil(newY / this.mIconAreaSizeY);
@@ -515,14 +511,6 @@ class GalleryView {
         this.mTrackerSquare.style.display = "none";
         this.mTrackerSquare.style.gridColumn = "1";
         this.mTrackerSquare.style.gridRow = "1";
-    }
-
-    setBlurEffect(onoff) {
-        if (onoff) {
-            this.mBaseDiv.style.filter = "blur(1.0rem)"
-        } else {
-            this.mBaseDiv.style.filter = ""
-        }
     }
 
     showAnimation(posX, posY) {
@@ -787,15 +775,7 @@ class GalleryController {
     }
 
     showImage(item) {
-        if (!item.mIsOpened) {
-            this.mGalleryView.showImage(item.getNodeId(), item.getSizeX(), item.getSizeY());
-            this.mGalleryView.setBlurEffect(true)
-            item.mIsOpened = true;
-        } else {
-            this.mGalleryView.closeImage(item.getNodeId(), item.getPosX(), item.getPosY());
-            this.mGalleryView.setBlurEffect(false)
-            item.mIsOpened = false;
-        }
+        let openedItem = new ImageView(item.getSrc(), item.getImgTitle());
     }
 
     enableMoveMode(nid, posX, posY) {
